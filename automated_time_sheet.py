@@ -1,9 +1,14 @@
-#Import statements
-from jira import JIRA 
+#! /usr/bin/env python
+
+# Standard library imports
 import csv
 import collections
 from datetime import *
 import math
+
+# Related third pary imports
+from jira import JIRA 
+
 
 def parse_date(date_string):
     """ Returns a parsed date dictionary from a JIRA formatted date. Example date: 2019-06-18T18:39:02.524+0000 """
