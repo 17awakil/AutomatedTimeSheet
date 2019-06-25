@@ -28,59 +28,62 @@ def parse_date(date_string):
 def time_delta(start_date, end_date):
     """ Returns a timedelta object that is equal to the time elapsed from the start_date to the end_date """
 
-    start_dict = parse_date(start_date)
-    end_dict = parse_date(end_date)
+    start = parse_date(start_date)
+    end = parse_date(end_date)
 
-    start_obj = datetime(start_dict["year"], start_dict["month"], start_dict["day"], start_dict["hour"], start_dict["minute"], start_dict["second"])
-    end_obj = datetime(end_dict["year"], end_dict["month"], end_dict["day"], end_dict["hour"], end_dict["minute"], end_dict["second"])
+    initial_time = datetime(start["year"], start["month"], start["day"], start["hour"], start["minute"], start["second"])
+    final_time = datetime(end["year"], end["month"], end["day"], end["hour"], end["minute"], end["second"])
     
-
-    return end_obj - start_obj
+    return final_time - initial_time
 
 
 def status_changes(issue):
     """ Returns an Ordered Dictionary sorted from earliest change date to latest change date to an issue in this form: { date : {} }"""
-    change_dict = {}
+    
+    changes = {}
     for change in issue.changelog.histories:
         if change.items[0].field == "status":
-            change_dict[change.created] = { "changeType" : change.items[0].field, "fromString" : change.items[0].fromString, "toString" : change.items[0].toString}
+            changes[change.created] = {"changeType": change.items[0].field, "initialStatus": change.items[0].fromString, "finalStatus": change.items[0].toString}
         elif change.items[0].field == "resolution":
-            change_dict[change.created] = {"changeType" : change.items[0].field, "fromString" : change.items[1].fromString, "toString" : change.items[1].toString}
-    change_dict = collections.OrderedDict(sorted(change_dict.items()))
-    return change_dict
+            changes[change.created] = {"changeType": change.items[0].field, "initialStatus": change.items[1].fromString, "finalStatus": change.items[1].toString}
+    changes = collections.OrderedDict(sorted(changes.items()))
+    
+    return changes
 
 
 def hours_spent(issue):
     """ Returns the number of hours spent on an issue"""
+    
     total_hours = 0 
     prev_date = None
-    changes_ordered_dict = status_changes(issue)
-    for date, change in changes_ordered_dict.items():
-        if change["fromString"] != "In Progress" and change["toString"] == "In Progress":
+    issue_status_changes = status_changes(issue)
+    for date, change in issue_status_changes.items():
+        if change["initialStatus"] != "In Progress" and change["finalStatus"] == "In Progress":
             prev_date = date  #Save the date object when a user starts progress 
-        elif (change["toString"] == "Done" or change["toString"] == "To Do") and prev_date != None:
+        elif (change["finalStatus"] == "Done" or change["finalStatus"] == "To Do") and prev_date != None:
             total_hours += (time_delta(prev_date, date).days * 8) + (time_delta(prev_date, date).seconds /3600.0)
             prev_date = None 
     
     return total_hours
-        
+
+    
 #Log into jira admin account on server
 jira = JIRA('http://jira:8080', basic_auth=('awakil', 'Nairy444@'))
 
 #Create a {user : {issue : hours}} nested dictionary
-user_issues_dict = {}
+user_issues = {}
 list_of_issues = jira.search_issues("project = TEST123", expand = "changelog")
 for issue in list_of_issues:
-    if issue.fields.assignee.displayName not in user_issues_dict.keys():
-        user_issues_dict[issue.fields.assignee.displayName] = {}
-    user_issues_dict[issue.fields.assignee.displayName][issue.key] = hours_spent(issue)
+    if issue.fields.assignee.displayName not in user_issues.keys():
+        user_issues[issue.fields.assignee.displayName] = {}
+    user_issues[issue.fields.assignee.displayName][issue.key] = hours_spent(issue)
 
 
 #Write dictionary into a csv file
 with open("time_report.csv", "w", newline = '') as csv_file:
     csv_writer = csv.writer(csv_file)
     csv_writer.writerow(["Automated Monthly Report"])
-    csv_writer.writerow(['User'] + ['Assigned Issues'] +['Hours Spent'])
-    for user, assigned_issues in user_issues_dict.items():
+    csv_writer.writerow(['User'] + ['Assigned Issues'] + ['Date Started'] + ['Date Completed'] + ['Hours Spent'])
+    for user, assigned_issues in user_issues.items():
         for issue, hours_spent in assigned_issues.items():
-            csv_writer.writerow([user] + [issue] + [hours_spent])
+            csv_writer.writerow([user] + [issue] + [""] + [""] + [hours_spent])
