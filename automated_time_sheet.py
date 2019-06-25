@@ -72,7 +72,7 @@ jira = JIRA('http://jira:8080', basic_auth=('awakil', 'Nairy444@'))
 
 #Create a {user : {issue : hours}} nested dictionary
 user_issues = {}
-list_of_issues = jira.search_issues("project = TEST123", expand = "changelog")
+list_of_issues = jira.search_issues("project = TEST123 AND resolved >= startOfMonth() AND resolved <= endOfMonth()"  , expand = "changelog")
 for issue in list_of_issues:
     if issue.fields.assignee.displayName not in user_issues.keys():
         user_issues[issue.fields.assignee.displayName] = {}
@@ -83,7 +83,10 @@ for issue in list_of_issues:
 with open("time_report.csv", "w", newline = '') as csv_file:
     csv_writer = csv.writer(csv_file)
     csv_writer.writerow(["Automated Monthly Report"])
-    csv_writer.writerow(['User'] + ['Assigned Issues'] + ['Date Started'] + ['Date Completed'] + ['Hours Spent'])
+    csv_writer.writerow(["User"] + ["Assigned Issues"] + ["Date Started"] + ["Date Completed"] + ["Hours Spent"])
     for user, assigned_issues in user_issues.items():
         for issue, hours_spent in assigned_issues.items():
             csv_writer.writerow([user] + [issue] + [""] + [""] + [hours_spent])
+    csv_writer.writerow([""])
+    csv_writer.writerow(["User"] +["Total Hours"])
+    
