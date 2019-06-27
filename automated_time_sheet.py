@@ -60,7 +60,7 @@ def hours_spent(issue):
     for date, change in issue_status_changes.items():
         if change["initialStatus"] != "In Progress" and change["finalStatus"] == "In Progress":
             prev_date = date  #Save the date object when a user starts progress 
-        elif (change["finalStatus"] == "Done" or change["finalStatus"] == "To Do") and prev_date != None:
+        elif (change["finalStatus"] != "In Progress") and prev_date != None:
             total_hours += (time_delta(prev_date, date).days * 8) + (time_delta(prev_date, date).seconds /3600.0)
             prev_date = None 
     
@@ -72,7 +72,7 @@ jira = JIRA('http://jira:8080', basic_auth=('awakil', 'Nairy444@'))
 
 #Create a {user : {issue : hours}} nested dictionary
 user_issues = {}
-list_of_issues = jira.search_issues("project = TEST123 AND resolved >= startOfMonth() AND resolved <= endOfMonth()"  , expand = "changelog")
+list_of_issues = jira.search_issues("project = TEST123 AND ( (resolved >= startOfMonth() AND resolved <= endOfMonth()) OR (status = 'In Progress') )"  , expand = "changelog")
 for issue in list_of_issues:
     if issue.fields.assignee.displayName not in user_issues.keys():
         user_issues[issue.fields.assignee.displayName] = {}
