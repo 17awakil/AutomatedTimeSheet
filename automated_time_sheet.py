@@ -12,29 +12,20 @@ from jira import JIRA
 
 def parse_date(date_string):
     """ Returns a parsed date dictionary from a JIRA formatted date. Example date: 2019-06-18T18:39:02.524+0000 """
-    
-    date = datetime.strptime(date_string, "%Y-%m-%dT%H:%M:%S.%f%z")
-    
-    year = date.year
-    month = date.month
-    day = date.day
-    hour = date.hour
-    minute = date.minute
-    second = date.second
 
-    return {"year" : year , "month" : month , "day" : day , "hour" : hour , "minute" : minute , "second" : second }
+    date = datetime.strptime(date_string, "%Y-%m-%dT%H:%M:%S.%f%z")
+
+    return date
 
 
 def time_delta(start_date, end_date):
     """ Returns a timedelta object that is equal to the time elapsed from the start_date to the end_date """
 
-    start = parse_date(start_date)
-    end = parse_date(end_date)
 
-    initial_time = datetime(start["year"], start["month"], start["day"], start["hour"], start["minute"], start["second"])
-    final_time = datetime(end["year"], end["month"], end["day"], end["hour"], end["minute"], end["second"])
+    end = parse_date(end_date)
+    start = parse_date(start_date)
     
-    return final_time - initial_time
+    return end - start
 
 
 def status_changes(issue):
@@ -63,7 +54,9 @@ def hours_spent(issue):
         elif (change["finalStatus"] != "In Progress") and prev_date != None:
             total_hours += (time_delta(prev_date, date).days * 8) + (time_delta(prev_date, date).seconds /3600.0)
             prev_date = None 
-    
+        # elif prev_date != None:
+        #     total_hours += time_delta(prev_date, "now").days * 8 + (time_delta(prev_date,"now").seconds /3600.0)
+
     return total_hours
 
     
@@ -90,3 +83,47 @@ with open("time_report.csv", "w", newline = '') as csv_file:
     csv_writer.writerow([""])
     csv_writer.writerow(["User"] +["Total Hours"])
     
+def progress_overlapping(progress1 , progress2):
+    start1 = parse_date(list(progress1)[0])
+    end1 = parse_date(list(progress1)[0])
+    start2 = parse_date(list(progress2)[0])
+    end2 = parse_date(list(progress2)[0])
+
+    start_time = str
+    end_time = str
+
+    if end1 >= start2:
+        start_time = start2
+        end_time = end1
+    elif end2 >= start1:
+        start_time = start1
+        end_time = end2
+    
+    return {start_time : end_time}
+
+
+
+
+        
+def progress(issue):
+    changes = status_changes(issue)
+
+    progresses = []
+
+    start_progress = None
+
+    for date, change in changes.items():
+        if change["initialStatus"] != "In Progress" and change["finalStatus"] == "In Progress":
+            start_progress = date
+            
+        elif change["finalStatus"] != "In Progress" and change["initialStatus"] == "In Progress" and start_progress != None:
+            progresses.append({start_progress : date})
+            start_progress = None
+    
+    return progresses
+
+issue1_progresses = progress(jira.issue("TEST123-10", expand = "changelog"))
+issue2_progresses = progress(jira.issue("TEST123-8", expand = "changelog"))
+print(progress_overlapping(issue1_progresses[0], issue2_progresses[0]))
+
+
