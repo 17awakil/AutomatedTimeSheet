@@ -65,8 +65,8 @@ jira = JIRA('http://jira:8080', basic_auth=('awakil', 'Nairy444@'))
 
 #Create a {user : {issue : hours}} nested dictionary
 user_issues = {}
-list_of_issues = jira.search_issues("project = TEST123 AND ( (resolved >= startOfMonth() AND resolved <= endOfMonth()) OR (status = 'In Progress') )"  , expand = "changelog")
-for issue in list_of_issues:
+issues = jira.search_issues("project = TEST123 AND ( (resolved >= startOfMonth() AND resolved <= endOfMonth()) OR (status = 'In Progress') )"  , expand = "changelog")
+for issue in issues:
     if issue.fields.assignee.displayName not in user_issues.keys():
         user_issues[issue.fields.assignee.displayName] = {}
     user_issues[issue.fields.assignee.displayName][issue.key] = hours_spent(issue)
@@ -84,27 +84,35 @@ with open("time_report.csv", "w", newline = '') as csv_file:
     csv_writer.writerow(["User"] +["Total Hours"])
     
 def progress_overlapping(progress1 , progress2):
+    
     start1 = parse_date(list(progress1)[0])
-    end1 = parse_date(list(progress1)[0])
+    end1 = parse_date(list(progress1.values())[0])
     start2 = parse_date(list(progress2)[0])
-    end2 = parse_date(list(progress2)[0])
+    end2 = parse_date(list(progress2.values())[0])
 
     start_time = str
     end_time = str
 
-    if end1 >= start2:
-        start_time = start2
-        end_time = end1
-    elif end2 >= start1:
-        start_time = start1
-        end_time = end2
-    
-    return {start_time : end_time}
-
-
-
-
+    if (start1 <= start2 <= end1) or (start2 <= start1 <= end2):
         
+        if start1 <= start2:
+            start_time = start2
+        else:
+            start_time = start1
+
+        if end1 <= end2:
+            end_time = end1
+        else:
+            end_time = end2
+        
+        return {start_time : end_time}
+
+def overlap_exists(progress1, progress2):
+    if progress_overlapping(progress1,progress2) != None:
+        return True
+    else:
+        return False
+
 def progress(issue):
     changes = status_changes(issue)
 
@@ -122,8 +130,16 @@ def progress(issue):
     
     return progresses
 
-issue1_progresses = progress(jira.issue("TEST123-10", expand = "changelog"))
-issue2_progresses = progress(jira.issue("TEST123-8", expand = "changelog"))
-print(progress_overlapping(issue1_progresses[0], issue2_progresses[0]))
+
+def issues_today_by_user():
+    issues = jira.search_issues("project = TEST123 AND ( (resolved >= startOfDay() AND resolved <= endOfDay()) OR (status = 'In Progress') )", expand = "changelog")
+    users_issues = []
+    for issue in issues:
+        users_issues.append(issue)
+    return users_issues
+
+
+issue1_progresses = progress(jira.issue("TEST123-13", expand = "changelog"))
+issue2_progresses = progress(jira.issue("TEST123-12", expand = "changelog"))
 
 
