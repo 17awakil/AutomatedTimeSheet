@@ -133,13 +133,19 @@ def progress(issue):
 
 def issues_today_by_user():
     issues = jira.search_issues("project = TEST123 AND ( (resolved >= startOfDay() AND resolved <= endOfDay()) OR (status = 'In Progress') )", expand = "changelog")
-    users_issues = []
+    users_issues = {}
     for issue in issues:
-        users_issues.append(issue)
+        if issue.fields.assignee.displayName not in users_issues.keys():
+            users_issues[issue.fields.assignee.displayName] = []
+        users_issues[issue.fields.assignee.displayName].append(issue)
     return users_issues
 
 
 issue1_progresses = progress(jira.issue("TEST123-13", expand = "changelog"))
 issue2_progresses = progress(jira.issue("TEST123-12", expand = "changelog"))
 
+ponj = {}
 
+for issue in issues_today_by_user()["Andre Wakil"]:
+    for prog in progress(issue):
+        if overlap
