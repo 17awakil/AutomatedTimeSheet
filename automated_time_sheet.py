@@ -118,7 +118,7 @@ def progress(issue):
 
     progresses = []
 
-    start_progress = None
+    start_progress = ""
 
     for date, change in changes.items():
         if change["initialStatus"] != "In Progress" and change["finalStatus"] == "In Progress":
@@ -126,7 +126,11 @@ def progress(issue):
             
         elif change["finalStatus"] != "In Progress" and change["initialStatus"] == "In Progress" and start_progress != None:
             progresses.append({start_progress : date})
-            start_progress = None
+            start_progress = ""
+    
+    #if the issue is currently in progress, then add append a progress from the last start_progress till the current time
+    if issue.fields.status.name == "In Progress" and start_progress != "":
+        progresses.append({start_progress: datetime.now()})
     
     return progresses
 
@@ -135,17 +139,21 @@ def issues_today_by_user():
     issues = jira.search_issues("project = TEST123 AND ( (resolved >= startOfDay() AND resolved <= endOfDay()) OR (status = 'In Progress') )", expand = "changelog")
     users_issues = {}
     for issue in issues:
-        if issue.fields.assignee.displayName not in users_issues.keys():
+        if progress(issue) and issue.fields.assignee.displayName not in users_issues.keys():
             users_issues[issue.fields.assignee.displayName] = []
-        users_issues[issue.fields.assignee.displayName].append(issue)
+        if progress(issue): #if issue has been in progress, in other words, the list of progresses is not empty, then append the issue
+            users_issues[issue.fields.assignee.displayName].append(issue.key)
     return users_issues
 
 
 issue1_progresses = progress(jira.issue("TEST123-13", expand = "changelog"))
 issue2_progresses = progress(jira.issue("TEST123-12", expand = "changelog"))
 
-ponj = {}
+print(issues_today_by_user())
 
-for issue in issues_today_by_user()["Andre Wakil"]:
-    for prog in progress(issue):
-        if overlap
+def datetime_to_jira_date(date): 
+    result = "{}-{}-{}T{}:{}:{}.{}+0000".format(date.year, date.month, date.day,date.hour,date.minute,date.second,date.microsecond)
+    return result
+
+print(datetime_to_jira_date(datetime.now()))
+
