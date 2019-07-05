@@ -2,9 +2,6 @@
 
 # Standard library imports
 import csv
-import collections
-from datetime import *
-import math
 import sys
 
 # Related third pary imports
