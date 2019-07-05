@@ -12,8 +12,7 @@ jira = JIRA('http://jira:8080', basic_auth=('awakil', 'Nairy444@'))
 
 #Validation check
 if len(sys.argv) < 2:
-    print("Must input the date as a command line argument in the following format YYYY-MM-DD")
-    sys.exit()
+    sys.exit("Must input the date as a command line argument in the following format: YYYY-MM-DD")
 
 #Get issues worked on by date
 def issues_by_date(date):
