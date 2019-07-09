@@ -24,10 +24,17 @@ def issues_by_date(date):
         users_issues[issue.fields.assignee.displayName].append(issue.key)
     return users_issues
 
+def hours_spent(issues):
+    """ Returns the number of hours per issue, assuming that they worked 8 hours / number of issues they worked on that day """
+    return 8.0 / len(issues)
+
 #Write data into csv file
 with open("auto_time_report.csv", "w", newline = '') as csv_file:
     csv_writer = csv.writer(csv_file)
     csv_writer.writerow(["Automated JIRA Time Report"])
-    csv_writer.writerow(["User"] + ["Assigned Issues"])
+    csv_writer.writerow(" ")
+    csv_writer.writerow(["User"] + ["Assigned Issues"] + ["Hours Spent"])
     for user, assigned_issues in issues_by_date(sys.argv[1]).items():
-            csv_writer.writerow([user] + [assigned_issues])
+        hours = hours_spent(assigned_issues)
+        for issue in assigned_issues:
+            csv_writer.writerow([user] + [issue] + [hours])
