@@ -18,7 +18,7 @@ jira = JIRA('http://jira:8080', basic_auth=('awakil', 'Nairy444@'))
 
 date = sys.argv[1]
 
-#Get users from jira server that are in progress in a specific project
+#Get users from jira server that are in a specific project
 users = jira.search_assignable_users_for_projects("", "TEST123")
 
 #Process issues in the following data structure: {user1 : [ {issue1 : hours1}, {issue2 : hours2}, ...], user2 : [{issue3 : hours3}, ...], ...}
