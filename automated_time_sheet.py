@@ -18,10 +18,10 @@ jira = JIRA('http://jira:8080', basic_auth=('awakil', 'Nairy444@'))
 
 date = sys.argv[1]
 
-#Get user from jira server that were in progress in a specific project
+#Get users from jira server that are in progress in a specific project
 users = jira.search_assignable_users_for_projects("", "TEST123")
 
-#Process issues in the following data structure: {user1 : [ {issue1 : hours1}, {issue2 : hours2} ...], user2 : [{issue3 : hours3}, ...], ...}
+#Process issues in the following data structure: {user1 : [ {issue1 : hours1}, {issue2 : hours2}, ...], user2 : [{issue3 : hours3}, ...], ...}
 user_issues = {}
 for user in users:
     user_issues[user.displayName] = []
@@ -29,7 +29,7 @@ for user in users:
         user_issues[user.displayName].append({issue.key : 0 })
 
 
-#Calculate hours spent on issues
+#Calculate hours spent on issues (high-level estimation)
 for user, assigned_issues in user_issues.items():
     for issue in assigned_issues:
         issue[list(issue.keys())[0]] = 8.0 / len(assigned_issues)
