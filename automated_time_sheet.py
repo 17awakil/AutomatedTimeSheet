@@ -43,7 +43,8 @@ with open("auto_time_report.csv", "w", newline = '') as csv_file:
     csv_writer.writerow(["Automated JIRA Time Report"] + ["for " + date])
     csv_writer.writerow(" ")
     csv_writer.writerow(["User"] + ["Assigned Issues"] + ["Hours Spent"])
-    for user, assigned_issues in user_issues.items():
-        for issue, hours in assigned_issues.items():
+    
+    for user in user_issues:
+        for issue, hours in user_issues[user].items():
                 csv_writer.writerow([user] + [issue] + [hours])
 
