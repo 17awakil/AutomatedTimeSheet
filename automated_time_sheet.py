@@ -18,15 +18,15 @@ jira = JIRA('http://jira:8080', basic_auth=('awakil', 'Nairy444@'))
 
 date = sys.argv[1]
 
-#Get issues from jira server that were in progress on a specific day and in a specific project
-issues = jira.search_issues("project = TEST123 AND status WAS 'In Progress' ON {}".format(date))
+#Get user from jira server that were in progress in a specific project
+users = jira.search_assignable_users_for_projects("", "TEST123")
 
 #Process issues in the following data structure: {user1 : [ {issue1 : hours1}, {issue2 : hours2} ...], user2 : [{issue3 : hours3}, ...], ...}
 user_issues = {}
-for issue in issues:
-    if issue.fields.assignee.displayName not in user_issues.keys():
-        user_issues[issue.fields.assignee.displayName] = []
-    user_issues[issue.fields.assignee.displayName].append({issue.key : 0})
+for user in users:
+    user_issues[user.displayName] = []
+    for issue in jira.search_issues("project = TEST123 AND status WAS 'In Progress' ON {} AND assignee WAS '{}' ON {} ".format(date, user.key, date)):
+        user_issues[user.displayName].append({issue.key : 0 })
 
 
 #Calculate hours spent on issues
@@ -45,3 +45,4 @@ with open("auto_time_report.csv", "w", newline = '') as csv_file:
         for issue in assigned_issues:
             for issue_key, hours_spent in issue.items():
                 csv_writer.writerow([user] + [issue_key] + [hours_spent])
+
