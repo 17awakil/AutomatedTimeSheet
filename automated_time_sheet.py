@@ -23,7 +23,7 @@ project = "TEST123"
 #Get users from jira server that are in a specific project
 users = jira.search_assignable_users_for_projects("", project)
 
-#Process issues in the following data structure: {user1 : [ {issue1 : hours1}, {issue2 : hours2}, ...], user2 : [{issue3 : hours3}, ...], ...}
+#Process issues in the following data structure: {user1 : {issue1 : hours1 , issue2 : hours2} , user2 : {issue3 : hours3}, ...}
 user_issues = {}
 for user in users:
     user_issues[user.displayName] = {}
