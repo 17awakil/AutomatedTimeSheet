@@ -12,12 +12,8 @@ from jira import JIRA
 if len(sys.argv) < 2:
     sys.exit("Must input the date as a command line argument in the following format: YYYY-MM-DD")
 
-
-
-
 def hours_spent(issue):
     pass
-
 
 #Constant declaration
 PROJECT_KEY = "TEST123"
