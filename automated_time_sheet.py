@@ -12,17 +12,17 @@ from jira import JIRA
 # Set up argument parser for time report options
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--server", help="The JIRA server URL you wish to connect to", type=str)
+   "-s", "--server", help="The JIRA server URL you wish to connect to", type=str)
 parser.add_argument(
-    "--username", help="The JIRA username you wish to login with", type=str)
+   "-u", "--username", help="The JIRA username you wish to login with", type=str)
 parser.add_argument(
-    "--password", help="The password to your JIRA account", type=str)
+   "-pass", "--password", help="The password to your JIRA account", type=str)
 parser.add_argument(
-    "--project-key", help="The key to the project for which you wish to produce a time report", type=str)
+   "-proj", "--project-key", help="The key to the project for which you wish to produce a time report", type=str)
 parser.add_argument(
-    "--start-date", help="The start date for the time report in this format: YYYY-MM-DD", type=str)
+   "-start", "--start-date", help="The start date for the time report in this format: YYYY-MM-DD", type=str)
 parser.add_argument(
-    "--end-date", help="The end date for the time report in this format: YYYY-MM-DD", type=str)
+   "-end", "--end-date", help="The end date for the time report in this format: YYYY-MM-DD", type=str)
 args = parser.parse_args()
 
 # Constant declaration for default values
