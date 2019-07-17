@@ -17,14 +17,10 @@ if len(sys.argv) < 2:
 PROJECT_KEY = "TEST123"
 
 # Global variables
-start_date_string = sys.argv[1]
-end_date_string = ""
-issues = []
-start_date = datetime.strptime(start_date_string, "%Y-%m-%d")
+start_date = datetime.strptime(sys.argv[1], "%Y-%m-%d")
 end_date = start_date
 if len(sys.argv) == 3:
-    end_date_string = sys.argv[2]
-    end_date = datetime.strptime(end_date_string, "%Y-%m-%d")
+    end_date = datetime.strptime(sys.argv[2], "%Y-%m-%d")
 
 # Log into jira admin account on server
 jira = JIRA('http://jira:8080', basic_auth=('awakil', 'Nairy444@'))
@@ -32,15 +28,20 @@ jira = JIRA('http://jira:8080', basic_auth=('awakil', 'Nairy444@'))
 # Get users from jira server that are in a specific project
 users = jira.search_assignable_users_for_projects("", PROJECT_KEY)
 
-# Process issues in the below data structure
-# { date1 :
-#           { user1 :
-#                       {issue1 :hours1}
-#           , user2 :
-#                       {issue2: hours2}
-#           }
+# Process issues in the below data strucure:
+# {date1: {user1: {issue1: hours1,
+#                  issue2: hours2,
+#                 },
+#          user2: {issue3: hours3,
+#                  issue4: hours4
+#                 }
+#         },
+#  date2: {user3: {issue5: hours5,
+#                  issue6: hours6,
+#                  issue7: hours7
+#                 }
+#         }
 # }
-
 user_issues = {}
 date = start_date
 while date <= end_date:
@@ -48,10 +49,10 @@ while date <= end_date:
     user_issues[date_string] = {}
     for user in users:
         user_issues[date_string][user.displayName] = {}
-        issues = jira.search_issues("project={} AND status WAS 'In Progress'"
-                                    "ON {} AND assignee WAS '{}' ON {} "
-                                    .format(PROJECT_KEY, date_string, user.key,
-                                            date_string))
+        issues = jira.search_issues("project= " + PROJECT_KEY +
+                                    " AND status WAS 'In Progress' ON " + date_string +
+                                    " AND assignee WAS " + user.key + " ON " + date_string
+                                    )
         for issue in issues:
             user_issues[date_string][user.displayName][issue.key] = 0
     date += timedelta(days=1)
@@ -67,8 +68,7 @@ with open("auto_time_report.csv", "w", newline='') as csv_file:
     csv_writer = csv.writer(csv_file)
     csv_writer.writerow(["Automated JIRA Time Report"])
     csv_writer.writerow(" ")
-    csv_writer.writerow(["Date"] + ["User"]
-                                 + ["Assigned Issue"] + ["Hours Spent"])
+    csv_writer.writerow(["Date"] + ["User"] + ["Assigned Issue"] + ["Hours Spent"])
     for date in user_issues:
         for user in user_issues[date]:
             for issue, hours in user_issues[date][user].items():
