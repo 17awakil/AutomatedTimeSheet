@@ -1,46 +1,78 @@
 #! /usr/bin/env python
 
 # Standard library imports
+import argparse
 import csv
-import sys
 from datetime import datetime, timedelta
 
 # Related third pary imports
 from jira import JIRA
 
-# Validation check
-if len(sys.argv) < 2:
-    sys.exit("Must input the date as a command line argument"
-             "in the following format: YYYY-MM-DD")
-
-# Constant declaration
-PROJECT_KEY = "TEST123"
+# Set up argument parser for time report options
+parser = argparse.ArgumentParser()
+parser.add_argument("-s",
+                    "--server",
+                    help="The JIRA server URL you wish to connect to",
+                    type=str,
+                    default="http://jira:8080",
+                    )
+parser.add_argument("-u",
+                    "--username",
+                    help="The JIRA username you wish to login with",
+                    type=str,
+                    default="awakil",
+                    )
+parser.add_argument("-pass",
+                    "--password",
+                    help="The password to your JIRA account",
+                    type=str,
+                    default="Nairy444@",
+                    )
+parser.add_argument("-proj",
+                    "--project-key",
+                    help="The key to the project for which you wish to produce a time report",
+                    type=str,
+                    default="TEST123",
+                    )
+parser.add_argument("-start",
+                    "--start-date",
+                    help="The start date for the time report in this format: YYYY-MM-DD",
+                    type=str,
+                    required=True
+                    )
+parser.add_argument("-end",
+                    "--end-date",
+                    help="The end date for the time report in this format: YYYY-MM-DD",
+                    type=str,
+                    )
+args = parser.parse_args()
 
 # Global variables
-start_date = datetime.strptime(sys.argv[1], "%Y-%m-%d")
-end_date = start_date
-if len(sys.argv) == 3:
-    end_date = datetime.strptime(sys.argv[2], "%Y-%m-%d")
+start_date = datetime.strptime(args.start_date, "%Y-%m-%d")
+if args.end_date:
+    end_date = datetime.strptime(args.end_date, "%Y-%m-%d")
+else:
+    end_date = start_date
 
 # Log into jira admin account on server
-jira = JIRA('http://jira:8080', basic_auth=('awakil', 'Nairy444@'))
+jira = JIRA(args.server, basic_auth=(args.username, args.password))
 
 # Get users from jira server that are in a specific project
-users = jira.search_assignable_users_for_projects("", PROJECT_KEY)
+users = jira.search_assignable_users_for_projects("", args.project_key)
 
 # Process issues in the below data strucure:
 # {date1: {user1: {issue1: hours1,
 #                  issue2: hours2,
 #                 },
 #          user2: {issue3: hours3,
-#                  issue4: hours4
-#                 }
+#                  issue4: hours4,
+#                 },
 #         },
 #  date2: {user3: {issue5: hours5,
 #                  issue6: hours6,
-#                  issue7: hours7
-#                 }
-#         }
+#                  issue7: hours7,
+#                 },
+#         },
 # }
 user_issues = {}
 date = start_date
@@ -49,7 +81,7 @@ while date <= end_date:
     user_issues[date_string] = {}
     for user in users:
         user_issues[date_string][user.displayName] = {}
-        issues = jira.search_issues("project= " + PROJECT_KEY +
+        issues = jira.search_issues("project= " + args.project_key +
                                     " AND status WAS 'In Progress' ON " + date_string +
                                     " AND assignee WAS " + user.key + " ON " + date_string
                                     )
