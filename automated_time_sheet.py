@@ -46,9 +46,6 @@ parser.add_argument("-end",
                     )
 args = parser.parse_args()
 
-# Constants
-PROJECT_KEY = args.project_key
-
 # Global variables
 start_date = datetime.strptime(args.start, "%Y-%m-%d")
 end_date = datetime.strptime(args.end_date, "%Y-%m-%d")
@@ -57,7 +54,7 @@ end_date = datetime.strptime(args.end_date, "%Y-%m-%d")
 jira = JIRA(args.server, basic_auth=(args.username, args.password))
 
 # Get users from jira server that are in a specific project
-users = jira.search_assignable_users_for_projects("", PROJECT_KEY)
+users = jira.search_assignable_users_for_projects("", args.project_key)
 
 # Process issues in the below data strucure:
 # {date1: {user1: {issue1: hours1,
@@ -80,7 +77,7 @@ while date <= end_date:
     user_issues[date_string] = {}
     for user in users:
         user_issues[date_string][user.displayName] = {}
-        issues = jira.search_issues("project= " + PROJECT_KEY +
+        issues = jira.search_issues("project= " + args.project_key +
                                     " AND status WAS 'In Progress' ON " + date_string +
                                     " AND assignee WAS " + user.key + " ON " + date_string
                                     )
