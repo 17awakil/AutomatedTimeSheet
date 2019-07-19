@@ -4,62 +4,53 @@
 import argparse
 import csv
 from datetime import datetime, timedelta
-import sys
 
 # Related third pary imports
 from jira import JIRA
 
 # Set up argument parser for time report options
 parser = argparse.ArgumentParser()
-parser.add_argument(
-    "-s",
-    "--server",
-    help="The JIRA server URL you wish to connect to",
-    type=str,
-    default="http://jira:8080",
-)
-parser.add_argument(
-    "-u",
-    "--username",
-    help="The JIRA username you wish to login with",
-    type=str,
-    default="awakil",
-)
-parser.add_argument(
-    "-pass",
-    "--password",
-    help="The password to your JIRA account",
-    type=str,
-    default="Nairy444@",
-)
-parser.add_argument(
-    "-proj",
-    "--project-key",
-    help="The key to the project for which you wish to produce a time report",
-    type=str,
-    default="TEST123",
-)
-parser.add_argument(
-    "-start",
-    "--start-date",
-    help="The start date for the time report in this format: YYYY-MM-DD",
-    type=str,
-    default="2019-07-01",
-)
-parser.add_argument(
-    "-end",
-    "--end-date",
-    help="The end date for the time report in this format: YYYY-MM-DD",
-    type=str,
-    default="2019-07-01",
-)
+parser.add_argument("-s",
+                    "--server",
+                    help="The JIRA server URL you wish to connect to",
+                    type=str,
+                    default="http://jira:8080",
+                    )
+parser.add_argument("-u",
+                    "--username",
+                    help="The JIRA username you wish to login with",
+                    type=str,
+                    default="awakil",
+                    )
+parser.add_argument("-pass",
+                    "--password",
+                    help="The password to your JIRA account",
+                    type=str,
+                    default="Nairy444@",
+                    )
+parser.add_argument("-proj",
+                    "--project-key",
+                    help="The key to the project for which you wish to produce a time report",
+                    type=str,
+                    default="TEST123",
+                    )
+parser.add_argument("start",
+                    help="The start date for the time report in this format: YYYY-MM-DD",
+                    type=str,
+                    )
+parser.add_argument("-end",
+                    "--end-date",
+                    help="The end date for the time report in this format: YYYY-MM-DD",
+                    type=str,
+                    default="2019-07-01",
+                    )
 args = parser.parse_args()
 
 # Constants
 PROJECT_KEY = args.project_key
 
 # Global variables
-start_date = datetime.strptime(args.start_date, "%Y-%m-%d")
+start_date = datetime.strptime(args.start, "%Y-%m-%d")
 end_date = datetime.strptime(args.end_date, "%Y-%m-%d")
 
 # Log into jira admin account on server
