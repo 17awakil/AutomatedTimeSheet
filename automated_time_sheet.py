@@ -34,21 +34,25 @@ parser.add_argument("-proj",
                     type=str,
                     default="TEST123",
                     )
-parser.add_argument("start",
+parser.add_argument("-start",
+                    "--start-date",
                     help="The start date for the time report in this format: YYYY-MM-DD",
                     type=str,
+                    required=True
                     )
 parser.add_argument("-end",
                     "--end-date",
                     help="The end date for the time report in this format: YYYY-MM-DD",
                     type=str,
-                    default="2019-07-01",
                     )
 args = parser.parse_args()
 
 # Global variables
-start_date = datetime.strptime(args.start, "%Y-%m-%d")
-end_date = datetime.strptime(args.end_date, "%Y-%m-%d")
+start_date = datetime.strptime(args.start_date, "%Y-%m-%d")
+if args.end_date:
+    end_date = datetime.strptime(args.end_date, "%Y-%m-%d")
+else:
+    end_date = start_date
 
 # Log into jira admin account on server
 jira = JIRA(args.server, basic_auth=(args.username, args.password))
