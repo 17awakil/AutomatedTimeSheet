@@ -135,7 +135,7 @@ with open("auto_time_report.csv", "w", newline='') as csv_file:
                                     [issue.fields.issuetype.name] +
                                     [issue_key] +
                                     [issue.fields.summary] +
-                                    [issue.fields.customfield_10101] + # Epic field
+                                    [issue.fields.customfield_10101] +  # Epic field
                                     [hours]
                                     )
         csv_writer.writerow("")
