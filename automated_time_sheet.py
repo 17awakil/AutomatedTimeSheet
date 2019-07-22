@@ -100,9 +100,25 @@ with open("auto_time_report.csv", "w", newline='') as csv_file:
     csv_writer = csv.writer(csv_file)
     csv_writer.writerow(["Automated JIRA Time Report"])
     csv_writer.writerow(" ")
-    csv_writer.writerow(["Date"] + ["User"] + ["Assigned Issue"] + ["Hours Spent"])
+    csv_writer.writerow(["Date"] +
+                        ["Assignee"] +
+                        ["Issue Type"] +
+                        ["Issue Key"] +
+                        ["Issue Title"] +
+                        ["Epic Title"] +
+                        ["Hours Spent"]
+                        )
     for date in user_issues:
         for user in user_issues[date]:
-            for issue, hours in user_issues[date][user].items():
-                csv_writer.writerow([date] + [user] + [issue] + [hours])
+            for issue_key, hours in user_issues[date][user].items():
+                # Get issue object by key to access Issue Type and Issue Title
+                issue = jira.issue(issue_key)
+                csv_writer.writerow([date] +
+                                    [user] +
+                                    [issue.fields.issuetype.name] +
+                                    [issue_key] +
+                                    [issue.fields.summary] +
+                                    [issue.fields.customfield_10101] +
+                                    [hours]
+                                    )
         csv_writer.writerow("")
