@@ -111,14 +111,14 @@ with open("auto_time_report.csv", "w", newline='') as csv_file:
     for date in user_issues:
         for user in user_issues[date]:
             for issue_key, hours in user_issues[date][user].items():
-                # Get issue object by key to access Issue Type and Issue Title
+                # Get issue object by key to access Issue Type, Issue Title, and Epic
                 issue = jira.issue(issue_key)
                 csv_writer.writerow([date] +
                                     [user] +
                                     [issue.fields.issuetype.name] +
                                     [issue_key] +
                                     [issue.fields.summary] +
-                                    [issue.fields.customfield_10101] +
+                                    [issue.fields.customfield_10101] +  # Epic field
                                     [hours]
                                     )
         csv_writer.writerow("")
