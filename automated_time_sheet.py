@@ -61,16 +61,30 @@ jira = JIRA(args.server, basic_auth=(args.username, args.password))
 users = jira.search_assignable_users_for_projects("", args.project_key)
 
 # Process issues in the below data strucure:
-# {date1: {user1: {issue1: hours1,
-#                  issue2: hours2,
+# {date1: {user1: {issue1_key: {"issue": issue1,
+#                               "hours": hours1,
+#                              },
+#                  issue2_key: {"issue": issue2,
+#                               "hours": hours2,
+#                              },
 #                 },
-#          user2: {issue3: hours3,
-#                  issue4: hours4,
+#          user2: {issue3_key: {"issue": issue3,
+#                               "hours": hours3,
+#                              },
+#                  issue4_key: {"issue": issue4,
+#                               "hours": hours4,
+#                              },
 #                 },
 #         },
-#  date2: {user3: {issue5: hours5,
-#                  issue6: hours6,
-#                  issue7: hours7,
+#  date2: {user3: {issue5_key: {"issue": issue5,
+#                               "hours": hours5,
+#                              },
+#                  issue6_key: {"issue": issue6,
+#                               "hours": hours6,
+#                              },
+#                  issue7_key: {"issue": issue7,
+#                               "hours": hours7,
+#                              },
 #                 },
 #         },
 # }
@@ -86,23 +100,41 @@ while date <= end_date:
                                     " AND assignee WAS " + user.key + " ON " + date_string
                                     )
         for issue in issues:
-            user_issues[date_string][user.displayName][issue.key] = 0
+            user_issues[date_string][user.displayName][issue.key] = {}
+            user_issues[date_string][user.displayName][issue.key]["issue"] = issue
+            user_issues[date_string][user.displayName][issue.key]["hours"] = 0
     date += timedelta(days=1)
 
 # Calculate hours spent on issues (high-level estimation)
 for date in user_issues:
     for user in user_issues[date]:
         for issue in user_issues[date][user]:
-            user_issues[date][user][issue] = 8.0 / len(user_issues[date][user])
+            user_issues[date][user][issue]["hours"] = 8.0 / len(user_issues[date][user])
 
 # Write data into csv file
 with open("auto_time_report.csv", "w", newline='') as csv_file:
     csv_writer = csv.writer(csv_file)
     csv_writer.writerow(["Automated JIRA Time Report"])
     csv_writer.writerow(" ")
-    csv_writer.writerow(["Date"] + ["User"] + ["Assigned Issue"] + ["Hours Spent"])
+    csv_writer.writerow(["Date"] +
+                        ["Assignee"] +
+                        ["Issue Type"] +
+                        ["Issue Key"] +
+                        ["Issue Title"] +
+                        ["Epic Title"] +
+                        ["Hours Spent"]
+                        )
     for date in user_issues:
         for user in user_issues[date]:
-            for issue, hours in user_issues[date][user].items():
-                csv_writer.writerow([date] + [user] + [issue] + [hours])
+            for issue_key, fields in user_issues[date][user].items():
+                issue = fields["issue"]
+                hours = fields["hours"]
+                csv_writer.writerow([date] +
+                                    [user] +
+                                    [issue.fields.issuetype.name] +
+                                    [issue_key] +
+                                    [issue.fields.summary] +
+                                    [issue.fields.customfield_10101] +  # Epic field
+                                    [hours]
+                                    )
         csv_writer.writerow("")
