@@ -97,7 +97,8 @@ while date <= end_date:
         user_issues[date_string][user.displayName] = {}
         issues = jira.search_issues("project= " + args.project_key +
                                     " AND status WAS 'In Progress' ON " + date_string +
-                                    " AND assignee WAS " + user.key + " ON " + date_string
+                                    " AND assignee WAS " + user.key + " ON " + date_string +
+                                    " AND type != Epic"
                                     )
         for issue in issues:
             user_issues[date_string][user.displayName][issue.key] = {}
