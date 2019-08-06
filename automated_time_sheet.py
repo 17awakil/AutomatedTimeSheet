@@ -49,17 +49,22 @@ args = parser.parse_args()
 
 # Functions
 def insert_progress(current_progress, date):
+    final_progress = {"assignee": current_progress["assignee"],
+                      "issueKey": current_progress["issueKey"],
+                      "start": current_progress["start"],
+                      "end": current_progress["end"],
+                      }
     if current_progress["start"].date() <= date.date() <= current_progress["end"].date():
         if date + timedelta(hours=8) > current_progress["start"]:
-            current_progress["start"] = date + timedelta(hours=8)
+            final_progress["start"] = date + timedelta(hours=8)
         if date + timedelta(hours=16) <= current_progress["start"]:
             return
         if date + timedelta(hours=8) > current_progress["end"]:
             return
         if date + timedelta(hours=16) <= current_progress["end"]:
-            current_progress["end"] = date + timedelta(hours=16)
-        progress[date.strftime("%Y-%m-%d")].append(current_progress)
-            
+            final_progress["end"] = date + timedelta(hours=16)
+        progress[date.strftime("%Y-%m-%d")].append(final_progress) 
+           
 # Global variables
 start_date = datetime.strptime(args.start_date, "%Y-%m-%d")
 if args.end_date:
@@ -85,6 +90,7 @@ while date <= end_date:
                                 " AND type != Epic",
                                 expand="changelog",
                                 )
+                                
     # Iterate through issues
     for issue in issues:
         # Current progress for the issue
@@ -107,11 +113,9 @@ while date <= end_date:
                 if change.items[0].fromString == "In Progress" and change.items[0].toString != "In Progress":
                     cur_prog["end"] = change_date
                     insert_progress(cur_prog, date)
-                    cur_prog = {"issueKey": issue.key,
-                                "assignee": None,
-                                "start": None,
-                                "end": None,
-                                }
+                    cur_prog["issueKey"] = issue.key
+                    cur_prog["start"] = None
+                    cur_prog["end"] = None
                                 
             # Resolution changes (like Status changes but one of the states, either to or from must be "Done")
             if change.items[0].field == "resolution":
@@ -122,11 +126,9 @@ while date <= end_date:
                 if change.items[1].fromString == "In Progress" and change.items[1].toString != "In Progress":
                     cur_prog["end"] = change_date
                     insert_progress(cur_prog, date)
-                    cur_prog = {"issueKey": issue.key,
-                                "assignee": None,
-                                "start": None,
-                                "end": None,
-                                }
+                    cur_prog["issueKey"] = issue.key
+                    cur_prog["start"] = None
+                    cur_prog["end"] = None            
 
             # Assignee changes
             if change.items[0].field == "assignee":
@@ -147,7 +149,7 @@ while date <= end_date:
         # end the progress at the time of the report (now)
         if cur_prog["start"] is not None:
             cur_prog["end"] = datetime.now()
-            insert_progress(cur_prog, date)
+            insert_progress(cur_prog, date) 
         # No need to reset current progress since next iteration of issues loop will reset the progress dictionary
     date += timedelta(days=1)
 
