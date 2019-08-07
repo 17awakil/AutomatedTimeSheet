@@ -48,6 +48,8 @@ parser.add_argument("-end",
 args = parser.parse_args()
 
 # Functions
+
+
 def insert_progress(current_progress, date):
     final_progress = {"assignee": current_progress["assignee"],
                       "issueKey": current_progress["issueKey"],
@@ -63,8 +65,18 @@ def insert_progress(current_progress, date):
             return
         if date + timedelta(hours=16) <= current_progress["end"]:
             final_progress["end"] = date + timedelta(hours=16)
-        progress[date.strftime("%Y-%m-%d")].append(final_progress) 
-           
+        progress[date.strftime("%Y-%m-%d")].append(final_progress)
+
+
+def sort_changes(changes):
+    # Bubble sort
+    n = len(changes)
+    for i in range(n):
+        for j in range(0, n-i-1):
+            if datetime.strptime(changes[j].created[0:22], "%Y-%m-%dT%H:%M:%S.%f") > datetime.strptime(changes[j+1].created[0:22], "%Y-%m-%dT%H:%M:%S.%f"):
+                changes[j], changes[j+1] = changes[j+1], changes[j]
+
+
 # Global variables
 start_date = datetime.strptime(args.start_date, "%Y-%m-%d")
 if args.end_date:
@@ -90,7 +102,6 @@ while date <= end_date:
                                 " AND type != Epic",
                                 expand="changelog",
                                 )
-                                
     # Iterate through issues
     for issue in issues:
         # Current progress for the issue
@@ -100,57 +111,48 @@ while date <= end_date:
                     "end": None,
                     }
         # Iterate through all the changes for each issue
-        for change in issue.changelog.histories:
+        changes = issue.changelog.histories
+        if changes:
+            sort_changes(changes)
+        for change in changes:
             # Change time parsed into a datetime object
-            change_date = datetime.strptime(change.created[0:22], "%Y-%m-%dT%H:%M:%S.%f") - timedelta(hours=4)
+            change_date = datetime.strptime(
+                change.created[0:22], "%Y-%m-%dT%H:%M:%S.%f")
+            for item in change.items:
+                # Status changes (from "To-Do" to "In Progress" etc.)
+                if item.field == "status":
+                    # Change from NOT "In Progress" to "In Progress"
+                    if item.fromString != "In Progress" and item.toString == "In Progress":
+                        cur_prog["start"] = change_date
+                    # Change from "In Progress" to NOT "In Progress"
+                    if item.fromString == "In Progress" and item.toString != "In Progress":
+                        cur_prog["end"] = change_date
+                        insert_progress(cur_prog, date)
+                        cur_prog["issueKey"] = issue.key
+                        cur_prog["start"] = None
+                        cur_prog["end"] = None
 
-            # Status changes (from "To-Do" to "In Progress" and vice versa)
-            if change.items[0].field == "status":
-                # Change from NOT "In Progress" to "In Progress"
-                if change.items[0].fromString != "In Progress" and change.items[0].toString == "In Progress":
-                    cur_prog["start"] = change_date
-                # Change from "In Progress" to NOT "In Progress"
-                if change.items[0].fromString == "In Progress" and change.items[0].toString != "In Progress":
-                    cur_prog["end"] = change_date
-                    insert_progress(cur_prog, date)
-                    cur_prog["issueKey"] = issue.key
-                    cur_prog["start"] = None
-                    cur_prog["end"] = None
-                                
-            # Resolution changes (like Status changes but one of the states, either to or from must be "Done")
-            if change.items[0].field == "resolution":
-                # Change from NOT "In Progress" to "In Progress"
-                if change.items[1].fromString != "In Progress" and change.items[1].toString == "In Progress":
-                    cur_prog["start"] = change_date
-                # Change from "In Progress" to NOT "In Progress"
-                if change.items[1].fromString == "In Progress" and change.items[1].toString != "In Progress":
-                    cur_prog["end"] = change_date
-                    insert_progress(cur_prog, date)
-                    cur_prog["issueKey"] = issue.key
-                    cur_prog["start"] = None
-                    cur_prog["end"] = None            
-
-            # Assignee changes
-            if change.items[0].field == "assignee":
-                # If issue is not in progress, then just add assignee
-                if cur_prog["start"] is None:
-                        cur_prog["assignee"] = change.items[0].toString
-                # If there was a change of assignee while in progress, we must end the progress, 
-                # append it, and create a new progress with the new assignee
-                elif cur_prog["start"] is not None:
-                    cur_prog["end"] = change_date
-                    insert_progress(cur_prog, date)
-                    cur_prog = {"issueKey": issue.key,
-                                "assignee": change.items[0].toString,
-                                "start": change_date,
-                                "end": None,
-                                }
+                # Assignee changes
+                if item.field == "assignee":
+                    # If issue is not in progress, then just add assignee
+                    if cur_prog["start"] is None:
+                        cur_prog["assignee"] = item.toString
+                    # If there was a change of assignee while in progress, we must end the progress,
+                    # append it, and create a new progress with the new assignee
+                    elif cur_prog["start"] is not None:
+                        cur_prog["end"] = change_date
+                        insert_progress(cur_prog, date)
+                        cur_prog = {"issueKey": issue.key,
+                                    "assignee": item.toString,
+                                    "start": change_date,
+                                    "end": None,
+                                    }
+        
         # If by the end of the changelog there is a progress that has started but not ended, then
         # end the progress at the time of the report (now)
         if cur_prog["start"] is not None:
             cur_prog["end"] = datetime.now()
-            insert_progress(cur_prog, date) 
-        # No need to reset current progress since next iteration of issues loop will reset the progress dictionary
+            insert_progress(cur_prog, date)
     date += timedelta(days=1)
 
 pprint.pprint(progress)
@@ -175,15 +177,15 @@ pprint.pprint(progress)
 #                         )
 #     for date in user_issues:
 #         for user in user_issues[date]:
-#             for issue_key, fields in user_issues[date][user].items():
-#                 issue = fields["issue"]
-#                 hours = fields["hours"]
+#             for issue_key, items in user_issues[date][user].items():
+#                 issue = items["issue"]
+#                 hours = items["hours"]
 #                 csv_writer.writerow([date] +
 #                                     [user] +
-#                                     [issue.fields.issuetype.name] +
+#                                     [issue.items.issuetype.name] +
 #                                     [issue_key] +
-#                                     [issue.fields.summary] +
-#                                     [issue.fields.customfield_10101] + # Epic field
+#                                     [issue.items.summary] +
+#                                     [issue.items.customitem_10101] + # Epic item
 #                                     [hours]
 #                                     )
 #         csv_writer.writerow("")
