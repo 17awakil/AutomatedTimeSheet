@@ -67,16 +67,6 @@ def insert_progress(current_progress, date):
             final_progress["end"] = date + timedelta(hours=16)
         progress[date.strftime("%Y-%m-%d")].append(final_progress)
 
-
-def sort_changes(changes):
-    # Bubble sort
-    n = len(changes)
-    for i in range(n):
-        for j in range(0, n-i-1):
-            if datetime.strptime(changes[j].created[0:22], "%Y-%m-%dT%H:%M:%S.%f") > datetime.strptime(changes[j+1].created[0:22], "%Y-%m-%dT%H:%M:%S.%f"):
-                changes[j], changes[j+1] = changes[j+1], changes[j]
-
-
 # Global variables
 start_date = datetime.strptime(args.start_date, "%Y-%m-%d")
 if args.end_date:
@@ -86,9 +76,6 @@ else:
 
 # Log into jira admin account on server
 jira = JIRA(args.server, basic_auth=(args.username, args.password))
-
-# Get users from jira server that are in a specific project
-users = jira.search_assignable_users_for_projects("", args.project_key)
 
 progress = {}
 date = start_date
@@ -113,7 +100,7 @@ while date <= end_date:
         # Iterate through all the changes for each issue
         changes = issue.changelog.histories
         if changes:
-            sort_changes(changes)
+            changes.sort(key=lambda x: x.created)
         for change in changes:
             # Change time parsed into a datetime object
             change_date = datetime.strptime(
@@ -147,7 +134,7 @@ while date <= end_date:
                                     "start": change_date,
                                     "end": None,
                                     }
-        
+
         # If by the end of the changelog there is a progress that has started but not ended, then
         # end the progress at the time of the report (now)
         if cur_prog["start"] is not None:
