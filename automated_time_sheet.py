@@ -50,7 +50,7 @@ args = parser.parse_args()
 # Functions
 def insert_progress(current_progress, date):
     final_progress = {"assignee": current_progress["assignee"],
-                      "issueKey": current_progress["issueKey"],
+                      "issue": current_progress["issue"],
                       "start": current_progress["start"],
                       "end": current_progress["end"],
                       }
@@ -98,16 +98,14 @@ while date <= end_date:
         if issue.fields.assignee:
             assignee = issue.fields.assignee.displayName
         # Current progress for the issue
-        cur_prog = {"issueKey": issue.key,
+        cur_prog = {"issue": issue,
                     "assignee": assignee,
                     "start": None,
                     "end": None,
                     }
         # Iterate through all the changes for each issue
-        changes = issue.changelog.histories
-        if changes:
-            changes.sort(key=lambda x: x.created)
-        for change in changes:
+        issue.changelog.histories.sort(key=lambda x: x.created)
+        for change in issue.changelog.histories:
             # Change time parsed into a datetime object
             change_date = datetime.strptime(
                 change.created[0:22], "%Y-%m-%dT%H:%M:%S.%f")
@@ -121,7 +119,7 @@ while date <= end_date:
                     if item.fromString == "In Progress" and item.toString != "In Progress":
                         cur_prog["end"] = change_date
                         insert_progress(cur_prog, date)
-                        cur_prog["issueKey"] = issue.key
+                        cur_prog["issue"] = issue
                         cur_prog["start"] = None
                         cur_prog["end"] = None
 
@@ -135,7 +133,7 @@ while date <= end_date:
                     elif cur_prog["start"] is not None:
                         cur_prog["end"] = change_date
                         insert_progress(cur_prog, date)
-                        cur_prog = {"issueKey": issue.key,
+                        cur_prog = {"issue": issue,
                                     "assignee": item.toString,
                                     "start": change_date,
                                     "end": None,
@@ -155,30 +153,27 @@ pprint.pprint(progress)
 #         for issue in user_issues[date][user]:
 #             user_issues[date][user][issue]["hours"] = 8.0 / len(user_issues[date][user])
 
-# # Write data into csv file
-# with open("auto_time_report.csv", "w", newline='') as csv_file:
-#     csv_writer = csv.writer(csv_file)
-#     csv_writer.writerow(["Automated JIRA Time Report"])
-#     csv_writer.writerow(" ")
-#     csv_writer.writerow(["Date"] +
-#                         ["Assignee"] +
-#                         ["Issue Type"] +
-#                         ["Issue Key"] +
-#                         ["Issue Title"] +
-#                         ["Epic Title"] +
-#                         ["Hours Spent"]
-#                         )
-#     for date in user_issues:
-#         for user in user_issues[date]:
-#             for issue_key, items in user_issues[date][user].items():
-#                 issue = items["issue"]
-#                 hours = items["hours"]
-#                 csv_writer.writerow([date] +
-#                                     [user] +
-#                                     [issue.items.issuetype.name] +
-#                                     [issue_key] +
-#                                     [issue.items.summary] +
-#                                     [issue.items.customitem_10101] + # Epic item
-#                                     [hours]
-#                                     )
-#         csv_writer.writerow("")
+# Write data into csv file
+with open("auto_time_report.csv", "w", newline='') as csv_file:
+    csv_writer = csv.writer(csv_file)
+    csv_writer.writerow(["Automated JIRA Time Report"])
+    csv_writer.writerow(" ")
+    csv_writer.writerow(["Date"] +
+                        ["Assignee"] +
+                        ["Issue Type"] +
+                        ["Issue Key"] +
+                        ["Issue Title"] +
+                        ["Epic Title"] +
+                        ["Time Spent"]
+                        )
+    for date in progress:
+        for prog in progress[date]:
+            csv_writer.writerow([date] +
+                                [prog["assignee"]] +
+                                [prog["issue"].fields.issuetype.name] +
+                                [prog["issue"].key] +
+                                [prog["issue"].fields.summary] +
+                                [prog["issue"].fields.customfield_10101] + # Epic item
+                                [prog["end"] - prog["start"]]
+                                )
+        csv_writer.writerow("")
