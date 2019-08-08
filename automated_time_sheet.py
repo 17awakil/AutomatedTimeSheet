@@ -48,21 +48,24 @@ parser.add_argument("-end",
 args = parser.parse_args()
 
 # Functions
-
-
 def insert_progress(current_progress, date):
     final_progress = {"assignee": current_progress["assignee"],
                       "issueKey": current_progress["issueKey"],
                       "start": current_progress["start"],
                       "end": current_progress["end"],
                       }
+    # Check if the current_progress overlaps with the day of the report
     if current_progress["start"].date() <= date.date() <= current_progress["end"].date():
+        # Check if progress started before 8:00 on that day
         if date + timedelta(hours=8) > current_progress["start"]:
             final_progress["start"] = date + timedelta(hours=8)
+        # If progress start after 16:00, then the progress shouldn't be included
         if date + timedelta(hours=16) <= current_progress["start"]:
             return
+        # If progress ends before 8:00, then the progress shouldn't be included
         if date + timedelta(hours=8) > current_progress["end"]:
             return
+        # If progress ends after 16:00, end it at 16:00
         if date + timedelta(hours=16) <= current_progress["end"]:
             final_progress["end"] = date + timedelta(hours=16)
         progress[date.strftime("%Y-%m-%d")].append(final_progress)
@@ -91,9 +94,12 @@ while date <= end_date:
                                 )
     # Iterate through issues
     for issue in issues:
+        assignee = None
+        if issue.fields.assignee:
+            assignee = issue.fields.assignee.displayName
         # Current progress for the issue
         cur_prog = {"issueKey": issue.key,
-                    "assignee": None,
+                    "assignee": assignee,
                     "start": None,
                     "end": None,
                     }
