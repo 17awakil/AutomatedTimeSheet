@@ -86,7 +86,7 @@ if args.end_date:
     end_date = datetime.strptime(args.end_date, "%Y-%m-%d")
 else:
     end_date = start_date
-custom_field = None
+epic_field = None
 
 # Log into jira admin account on server
 jira = JIRA(args.server, basic_auth=(args.username, args.password))
@@ -104,7 +104,7 @@ while date <= end_date:
                                 expand="changelog",
                                 )
     if date == start_date and issues:
-        custom_field = get_epic_field(issues[0])
+        epic_field = get_epic_field(issues[0])
 
     # Iterate through issues
     for issue in issues:
@@ -172,7 +172,7 @@ with open("auto_time_report.csv", "w", newline='') as csv_file:
                                 [prog["issue"].fields.issuetype.name] +
                                 [prog["issue"].key] +
                                 [prog["issue"].fields.summary] +
-                                [prog["issue"].raw["fields"][custom_field]] + # Epic item
+                                [prog["issue"].raw["fields"][epic_field]] + # Epic item
                                 [prog["end"] - prog["start"]]
                                 )
         csv_writer.writerow("")
