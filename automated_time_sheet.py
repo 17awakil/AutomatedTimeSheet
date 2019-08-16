@@ -4,7 +4,7 @@
 import argparse
 import csv
 from datetime import datetime, timedelta
-
+import pprint
 # Related third pary imports
 from jira import JIRA
 
@@ -32,7 +32,7 @@ parser.add_argument("-proj",
                     "--project-key",
                     help="The key to the project for which you wish to produce a time report",
                     type=str,
-                    default="TEST123",
+                    default="UC",
                     )
 parser.add_argument("-start",
                     "--start-date",
@@ -47,95 +47,132 @@ parser.add_argument("-end",
                     )
 args = parser.parse_args()
 
+
+# Functions
+def insert_progress(date, assignee, issue, start_date, end_date):
+    cur_prog = {"assignee": assignee,
+                "issue": issue,
+                "start": start_date,
+                "end": end_date,
+                }
+    # Check if the progress overlaps with the day of the report
+    if cur_prog["start"].date() <= date.date() <= cur_prog["end"].date():
+        # Check if progress started before 8:00 on that day
+        if date + timedelta(hours=8) > cur_prog["start"]:
+            cur_prog["start"] = date + timedelta(hours=8)
+        # If progress start after 16:00, then the progress shouldn't be included
+        if date + timedelta(hours=16) <= cur_prog["start"]:
+            return
+        # If progress ends before 8:00, then the progress shouldn't be included
+        if date + timedelta(hours=8) > cur_prog["end"]:
+            return
+        # If progress ends after 16:00, end it at 16:00
+        if date + timedelta(hours=16) <= cur_prog["end"]:
+            cur_prog["end"] = date + timedelta(hours=16)
+        progress[date.strftime("%Y-%m-%d")].append(cur_prog)
+
+
+def get_epic_field(issue):
+    expanded_issue = jira.issue(issue.key, expand= "schema")
+    for field, data in expanded_issue.raw["schema"].items():
+        if field.startswith("customfield"):
+            if data["custom"] == "com.pyxis.greenhopper.jira:gh-epic-link":
+                return field
+    return None
+
 # Global variables
 start_date = datetime.strptime(args.start_date, "%Y-%m-%d")
 if args.end_date:
     end_date = datetime.strptime(args.end_date, "%Y-%m-%d")
 else:
     end_date = start_date
+epic_field = None
 
 # Log into jira admin account on server
 jira = JIRA(args.server, basic_auth=(args.username, args.password))
 
-# Get users from jira server that are in a specific project
-users = jira.search_assignable_users_for_projects("", args.project_key)
-
-# Process issues in the below data strucure:
-# {date1: {user1: {issue1_key: {"issue": issue1,
-#                               "hours": hours1,
-#                              },
-#                  issue2_key: {"issue": issue2,
-#                               "hours": hours2,
-#                              },
-#                 },
-#          user2: {issue3_key: {"issue": issue3,
-#                               "hours": hours3,
-#                              },
-#                  issue4_key: {"issue": issue4,
-#                               "hours": hours4,
-#                              },
-#                 },
-#         },
-#  date2: {user3: {issue5_key: {"issue": issue5,
-#                               "hours": hours5,
-#                              },
-#                  issue6_key: {"issue": issue6,
-#                               "hours": hours6,
-#                              },
-#                  issue7_key: {"issue": issue7,
-#                               "hours": hours7,
-#                              },
-#                 },
-#         },
-# }
-user_issues = {}
+progress = {}
 date = start_date
 while date <= end_date:
     date_string = date.strftime("%Y-%m-%d")
-    user_issues[date_string] = {}
-    for user in users:
-        user_issues[date_string][user.displayName] = {}
-        issues = jira.search_issues("project= " + args.project_key +
-                                    " AND status WAS 'In Progress' ON " + date_string +
-                                    " AND assignee WAS " + user.key + " ON " + date_string +
-                                    " AND type != Epic"
-                                    )
-        for issue in issues:
-            user_issues[date_string][user.displayName][issue.key] = {}
-            user_issues[date_string][user.displayName][issue.key]["issue"] = issue
-            user_issues[date_string][user.displayName][issue.key]["hours"] = 0
+    # Make an entry for each day in the range [start_date, end_date] where progresses for the day will be stored
+    progress[date_string] = []
+    # Search issues for that day
+    issues = jira.search_issues("project= " + args.project_key +
+                                " AND status WAS 'In Progress' ON " + date_string +
+                                " AND type != Epic",
+                                expand="changelog",
+                                )
+    if date == start_date and issues:
+        epic_field = get_epic_field(issues[0])
+
+    # Iterate through issues
+    for issue in issues:
+        assignee = None
+        if issue.fields.assignee:
+            assignee = issue.fields.assignee.displayName
+        start = None
+        end = None
+        # Iterate through all the changes for each issue
+        issue.changelog.histories.sort(key=lambda x: x.created)
+        for change in issue.changelog.histories:
+            # Change time parsed into a datetime object
+            change_date = datetime.strptime(change.created[0:22], "%Y-%m-%dT%H:%M:%S.%f")
+            for item in change.items:
+                # Status changes (from "To-Do" to "In Progress" etc.)
+                if item.field == "status":
+                    # Change from NOT "In Progress" to "In Progress"
+                    if item.fromString != "In Progress" and item.toString == "In Progress":
+                        start = change_date
+                    # Change from "In Progress" to NOT "In Progress"
+                    if item.fromString == "In Progress" and item.toString != "In Progress":
+                        end = change_date
+                        insert_progress(date, assignee, issue, start, end)
+                        start = None
+                        end = None
+
+                # Assignee changes
+                if item.field == "assignee":
+                    # If issue is not in progress, then just add assignee
+                    if not start:
+                        assignee = item.toString
+                    # If there was a change of assignee while in progress, we must end the progress,
+                    # append it, and create a new progress with the new assignee
+                    elif start:
+                        end = change_date
+                        insert_progress(date, assignee, issue, start, end)
+                        assignee = item.toString
+                        start = change_date
+                        end = None
+
+        # If by the end of the changelog there is a progress that has started but not ended, then
+        # end the progress at the time of the report (now)
+        if start:
+            end = datetime.now()
+            insert_progress(date, assignee, issue, start, end)
     date += timedelta(days=1)
 
-# Calculate hours spent on issues (high-level estimation)
-for date in user_issues:
-    for user in user_issues[date]:
-        for issue in user_issues[date][user]:
-            user_issues[date][user][issue]["hours"] = 8.0 / len(user_issues[date][user])
+pprint.pprint(progress)
 
 # Write data into csv file
 with open("auto_time_report.csv", "w", newline='') as csv_file:
     csv_writer = csv.writer(csv_file)
-    csv_writer.writerow(["Automated JIRA Time Report"])
-    csv_writer.writerow(" ")
     csv_writer.writerow(["Date"] +
                         ["Assignee"] +
                         ["Issue Type"] +
                         ["Issue Key"] +
                         ["Issue Title"] +
                         ["Epic Title"] +
-                        ["Hours Spent"]
+                        ["Time Spent"]
                         )
-    for date in user_issues:
-        for user in user_issues[date]:
-            for issue_key, fields in user_issues[date][user].items():
-                issue = fields["issue"]
-                hours = fields["hours"]
-                csv_writer.writerow([date] +
-                                    [user] +
-                                    [issue.fields.issuetype.name] +
-                                    [issue_key] +
-                                    [issue.fields.summary] +
-                                    [issue.fields.customfield_10101] +  # Epic field
-                                    [hours]
-                                    )
+    for date in progress:
+        for prog in progress[date]:
+            csv_writer.writerow([date] +
+                                [prog["assignee"]] +
+                                [prog["issue"].fields.issuetype.name] +
+                                [prog["issue"].key] +
+                                [prog["issue"].fields.summary] +
+                                [prog["issue"].raw["fields"][epic_field]] + # Epic item
+                                [prog["end"] - prog["start"]]
+                                )
         csv_writer.writerow("")
