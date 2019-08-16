@@ -47,6 +47,7 @@ parser.add_argument("-end",
                     )
 args = parser.parse_args()
 
+
 # Functions
 def insert_progress(date, assignee, issue, start_date, end_date):
     cur_prog = {"assignee": assignee,
@@ -70,12 +71,22 @@ def insert_progress(date, assignee, issue, start_date, end_date):
             cur_prog["end"] = date + timedelta(hours=16)
         progress[date.strftime("%Y-%m-%d")].append(cur_prog)
 
+
+def get_epic_field(issue):
+    expanded_issue = jira.issue(issue.key, expand= "schema")
+    for field, data in expanded_issue.raw["schema"].items():
+        if field.startswith("customfield"):
+            if data["custom"] == "com.pyxis.greenhopper.jira:gh-epic-link":
+                return field
+    return None
+
 # Global variables
 start_date = datetime.strptime(args.start_date, "%Y-%m-%d")
 if args.end_date:
     end_date = datetime.strptime(args.end_date, "%Y-%m-%d")
 else:
     end_date = start_date
+custom_field = None
 
 # Log into jira admin account on server
 jira = JIRA(args.server, basic_auth=(args.username, args.password))
@@ -92,6 +103,9 @@ while date <= end_date:
                                 " AND type != Epic",
                                 expand="changelog",
                                 )
+    if date == start_date and issues:
+        custom_field = get_epic_field(issues[0])
+
     # Iterate through issues
     for issue in issues:
         assignee = None
@@ -158,7 +172,7 @@ with open("auto_time_report.csv", "w", newline='') as csv_file:
                                 [prog["issue"].fields.issuetype.name] +
                                 [prog["issue"].key] +
                                 [prog["issue"].fields.summary] +
-                                [prog["issue"].fields.customfield_10101] + # Epic item
+                                [prog["issue"].raw["fields"][custom_field]] + # Epic item
                                 [prog["end"] - prog["start"]]
                                 )
         csv_writer.writerow("")
