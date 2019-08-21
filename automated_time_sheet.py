@@ -54,6 +54,7 @@ def insert_progress(date, assignee, issue, start_date, end_date):
                 "issue": issue,
                 "start": start_date,
                 "end": end_date,
+                "time_spent": end_date - start_date
                 }
     # Check if the progress overlaps with the day of the report
     if cur_prog["start"].date() <= date.date() <= cur_prog["end"].date():
@@ -80,6 +81,14 @@ def get_epic_field(issue):
                 return field
     return None
 
+
+def is_overlapping(progress1, progress2):
+    if progress1["start"] <= progress2["end"] and progress1["end"] >= start2:
+        return True
+    elif progress2["start"] <= progress1["end"] and progress2["end"] >= start1:
+        return True
+    return False
+
 # Global variables
 start_date = datetime.strptime(args.start_date, "%Y-%m-%d")
 if args.end_date:
@@ -105,7 +114,6 @@ while date <= end_date:
                                 )
     if date == start_date and issues:
         epic_field = get_epic_field(issues[0])
-
     # Iterate through issues
     for issue in issues:
         assignee = None
@@ -152,7 +160,19 @@ while date <= end_date:
             insert_progress(date, assignee, issue, start, end)
     date += timedelta(days=1)
 
-pprint.pprint(progress)
+users = []
+for date in progress:
+    for prog in progress[date]:
+        if prog["assignee"] not in users:
+            users.append(prog["assignee"])
+
+for date in progress:
+    for user in users:
+        user_prog = filter(lambda x: x["assignee"] == user, progress[date])
+        if len(user_issues) > 1:
+            overlap_exists = False
+            for x in range(i, len(user_issues))
+                for y in range(i+1, len(user_issues))
 
 # Write data into csv file
 with open("auto_time_report.csv", "w", newline='') as csv_file:
