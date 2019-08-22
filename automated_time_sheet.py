@@ -4,7 +4,7 @@
 import argparse
 import csv
 from datetime import datetime, timedelta
-import pprint
+
 # Related third pary imports
 from jira import JIRA
 
@@ -69,16 +69,44 @@ def insert_progress(date, assignee, issue, start_date, end_date):
         # If progress ends after 16:00, end it at 16:00
         if date + timedelta(hours=16) <= cur_prog["end"]:
             cur_prog["end"] = date + timedelta(hours=16)
+        cur_prog["time_spent"] = cur_prog["end"] - cur_prog["start"]
         progress[date.strftime("%Y-%m-%d")].append(cur_prog)
 
 
 def get_epic_field(issue):
-    expanded_issue = jira.issue(issue.key, expand= "schema")
+    expanded_issue = jira.issue(issue.key, expand="schema")
     for field, data in expanded_issue.raw["schema"].items():
         if field.startswith("customfield"):
             if data["custom"] == "com.pyxis.greenhopper.jira:gh-epic-link":
                 return field
     return None
+
+# Check if two progresses are overlapping
+def is_overlapping(progress1, progress2):
+    if progress1["start"] <= progress2["end"] and progress1["end"] >= progress2["start"]:
+        return True
+    elif progress2["start"] <= progress1["end"] and progress2["end"] >= progress1["start"]:
+        return True
+    return False
+
+
+# Check if there are any progress conflicts for issues of a user
+def check_overlap(user_progress):
+    length = len(user_progress)
+    for i in range(0, length):
+        for j in range(i+1, length):
+            if is_overlapping(user_progress[i], user_progress[j]):
+                return True
+    return False
+
+
+# Estimation of time spent on each issue for a user
+def adjust_time(user_progress):
+    for prog in user_progress:
+        hours = 8 / len(user_progress)
+        minutes = int((8.0 / len(user_progress) - hours) * 60)
+        prog["time_spent"] = timedelta(hours=hours, minutes=minutes)
+
 
 # Global variables
 start_date = datetime.strptime(args.start_date, "%Y-%m-%d")
@@ -105,7 +133,6 @@ while date <= end_date:
                                 )
     if date == start_date and issues:
         epic_field = get_epic_field(issues[0])
-
     # Iterate through issues
     for issue in issues:
         assignee = None
@@ -117,7 +144,8 @@ while date <= end_date:
         issue.changelog.histories.sort(key=lambda x: x.created)
         for change in issue.changelog.histories:
             # Change time parsed into a datetime object
-            change_date = datetime.strptime(change.created[0:22], "%Y-%m-%dT%H:%M:%S.%f")
+            change_date = datetime.strptime(
+                change.created[0:22], "%Y-%m-%dT%H:%M:%S.%f")
             for item in change.items:
                 # Status changes (from "To-Do" to "In Progress" etc.)
                 if item.field == "status":
@@ -152,27 +180,40 @@ while date <= end_date:
             insert_progress(date, assignee, issue, start, end)
     date += timedelta(days=1)
 
-pprint.pprint(progress)
+# Get list of users from report
+users = []
+for date in progress:
+    for prog in progress[date]:
+        if prog["assignee"] not in users:
+            users.append(prog["assignee"])
+
+# Mid-level estimation when there are progress conflicts
+for date in progress:
+    for user in users:
+        # Get issues for user for that date
+        user_prog = list(
+            filter(lambda x: x["assignee"] == user, progress[date]))
+        if len(user_prog) > 1 and check_overlap(user_prog):
+            adjust_time(user_prog)
 
 # Write data into csv file
 with open("auto_time_report.csv", "w", newline='') as csv_file:
     csv_writer = csv.writer(csv_file)
-    csv_writer.writerow(["Date"] +
-                        ["Assignee"] +
-                        ["Issue Type"] +
-                        ["Issue Key"] +
-                        ["Issue Title"] +
-                        ["Epic Title"] +
-                        ["Time Spent"]
-                        )
+    csv_writer.writerow(["Date",
+                         "Assignee",
+                         "Issue Type",
+                         "Issue Key",
+                         "Issue Title",
+                         "Epic Title",
+                         "Time Spent",
+                         ])
     for date in progress:
         for prog in progress[date]:
-            csv_writer.writerow([date] +
-                                [prog["assignee"]] +
-                                [prog["issue"].fields.issuetype.name] +
-                                [prog["issue"].key] +
-                                [prog["issue"].fields.summary] +
-                                [prog["issue"].raw["fields"][epic_field]] + # Epic item
-                                [prog["end"] - prog["start"]]
-                                )
-        csv_writer.writerow("")
+            csv_writer.writerow([date,
+                                 prog["assignee"],
+                                 prog["issue"].fields.issuetype.name,
+                                 prog["issue"].key,
+                                 prog["issue"].fields.summary,
+                                 prog["issue"].raw["fields"][epic_field],
+                                 prog["time_spent"],
+                                 ])
