@@ -4,7 +4,7 @@
 import argparse
 import csv
 from datetime import datetime, timedelta
-import pprint
+
 # Related third pary imports
 from jira import JIRA
 
@@ -70,6 +70,7 @@ def insert_progress(date, assignee, issue, start_date, end_date):
         # If progress ends after 16:00, end it at 16:00
         if date + timedelta(hours=16) <= cur_prog["end"]:
             cur_prog["end"] = date + timedelta(hours=16)
+        cur_prog["time_spent"] = cur_prog["end"] - cur_prog["start"]
         progress[date.strftime("%Y-%m-%d")].append(cur_prog)
 
 
@@ -82,12 +83,32 @@ def get_epic_field(issue):
     return None
 
 
+# Check if two progresses are overlapping
 def is_overlapping(progress1, progress2):
-    if progress1["start"] <= progress2["end"] and progress1["end"] >= start2:
+    if progress1["start"] <= progress2["end"] and progress1["end"] >= progress2["start"]:
         return True
-    elif progress2["start"] <= progress1["end"] and progress2["end"] >= start1:
+    elif progress2["start"] <= progress1["end"] and progress2["end"] >= progress1["start"]:
         return True
     return False
+
+
+# Check if there are any progress conflicts for issues of a user
+def check_overlap(user_progress):
+    length = len(user_progress)
+    for i in range(0,length):
+        for j in range(i+1, length):
+            if is_overlapping(user_progress[i], user_progress[j]):
+                return True
+    return False
+
+
+# Estimation of time spent on each issue for a user 
+def adjust_time(user_progress):
+    for prog in user_progress:
+        hours = 8 / len(user_progress)
+        minutes = int((8.0 / len(user_progress) - hours) * 60)
+        prog["time_spent"] = timedelta(hours=hours, minutes=minutes)
+
 
 # Global variables
 start_date = datetime.strptime(args.start_date, "%Y-%m-%d")
@@ -160,19 +181,20 @@ while date <= end_date:
             insert_progress(date, assignee, issue, start, end)
     date += timedelta(days=1)
 
+# Get list of users from report
 users = []
 for date in progress:
     for prog in progress[date]:
         if prog["assignee"] not in users:
             users.append(prog["assignee"])
 
+# Mid-level estimation when there are progress conflicts
 for date in progress:
     for user in users:
-        user_prog = filter(lambda x: x["assignee"] == user, progress[date])
-        if len(user_issues) > 1:
-            overlap_exists = False
-            for x in range(i, len(user_issues))
-                for y in range(i+1, len(user_issues))
+        # Get issues for user for that date
+        user_prog = list(filter(lambda x: x["assignee"] == user, progress[date]))
+        if len(user_prog) > 1 and check_overlap(user_prog):
+                adjust_time(user_prog)                        
 
 # Write data into csv file
 with open("auto_time_report.csv", "w", newline='') as csv_file:
@@ -192,7 +214,7 @@ with open("auto_time_report.csv", "w", newline='') as csv_file:
                                 [prog["issue"].fields.issuetype.name] +
                                 [prog["issue"].key] +
                                 [prog["issue"].fields.summary] +
-                                [prog["issue"].raw["fields"][epic_field]] + # Epic item
-                                [prog["end"] - prog["start"]]
+                                [prog["issue"].raw["fields"][epic_field]] +
+                                [prog["time_spent"]]
                                 )
         csv_writer.writerow("")
