@@ -70,6 +70,8 @@ def insert_progress(date, assignee, issue, start_date, end_date):
         if date + timedelta(hours=16) <= cur_prog["end"]:
             cur_prog["end"] = date + timedelta(hours=16)
         cur_prog["time_spent"] = cur_prog["end"] - cur_prog["start"]
+        if cur_prog["issue"].fields.issuetype.subtask:
+            cur_prog["issue"] = jira.issue(cur_prog["issue"].fields.parent.key)
         progress[date.strftime("%Y-%m-%d")].append(cur_prog)
 
 
