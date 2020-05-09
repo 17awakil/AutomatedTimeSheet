@@ -1,1 +1,3 @@
-#automated_time_sheet
+# Automated Time Sheet
+
+A script that produces a time report in csv format for issues worked in a backlog of a project in a given time period using the Jira API. The purpose behind this report is for companies that are funded by the government for the hours they spend on research. The script takes command line arguments to specify the server, username, password, project, start date, and end date for the report. It includes logic to not count hours for tasks that are left in progress overnight, to not count extra hours if an employee is working on multiple issues at the same time (overlapping issues), to report sub-task time on parent issue, and more. 
