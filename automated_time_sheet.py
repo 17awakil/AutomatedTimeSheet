@@ -26,7 +26,7 @@ parser.add_argument("-pass",
                     "--password",
                     help="The password to your JIRA account",
                     type=str,
-                    default="Nairy444@",
+                    default="password",
                     )
 parser.add_argument("-proj",
                     "--project-key",
